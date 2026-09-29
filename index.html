@@ -1,0 +1,46 @@
+<!doctype html>
+<html lang="pl">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Labirynt</title>
+  <link rel="icon" href="data:,">
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <header id="hud" class="ukryty">
+    <span id="hud-poziom">Poziom 1</span>
+    <span id="hud-klucz" class="klucz">Brak klucza</span>
+    <span id="hud-mgla" class="mgla" hidden>Mgła</span>
+    <span id="hud-komunikat" class="komunikat" aria-live="polite"></span>
+    <span class="skroty"><kbd>R</kbd> nowy labirynt · <kbd>Esc</kbd> menu</span>
+  </header>
+
+  <main id="obszar">
+    <canvas id="plansza" aria-label="Plansza labiryntu"></canvas>
+
+    <section id="ekran-start" class="nakladka">
+      <div class="karta">
+        <h1>Labirynt</h1>
+        <p id="rekord" class="rekord">Najwyższy poziom: 0</p>
+        <ul class="instrukcja">
+          <li><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> lub <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — ruch</li>
+          <li>Zdobądź <strong class="t-klucz">klucz</strong>, potem dojdź do <strong class="t-drzwi">wyjścia</strong>.</li>
+          <li>Od poziomu 3 plansza tonie we <strong>mgle</strong> — widzisz tylko 3 kroki wzdłuż korytarzy.</li>
+          <li><kbd>R</kbd> — nowy labirynt, <kbd>Esc</kbd> — powrót do menu</li>
+        </ul>
+        <p class="akcja"><kbd>Enter</kbd> / <kbd>Spacja</kbd> — start</p>
+      </div>
+    </section>
+
+    <section id="ekran-ukonczony" class="nakladka" hidden>
+      <div class="karta">
+        <h2 id="ukonczony-tytul">Poziom 1 ukończony</h2>
+        <p class="akcja"><kbd>Enter</kbd> / <kbd>Spacja</kbd> — następny poziom</p>
+      </div>
+    </section>
+  </main>
+
+  <script type="module" src="src/main.js"></script>
+</body>
+</html>

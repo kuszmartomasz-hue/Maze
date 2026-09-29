@@ -1,0 +1,119 @@
+:root {
+  --tlo: #10131a;
+  --panel: #181d29;
+  --tekst: #e6ecf7;
+  --przygaszony: #93a0b8;
+  --klucz: #ffd23f;
+  --drzwi: #ff6b6b;
+  --gracz: #4fc3ff;
+  --akcent: #5ee08a;
+}
+
+* { box-sizing: border-box; }
+
+html, body {
+  margin: 0;
+  height: 100%;
+  background: var(--tlo);
+  color: var(--tekst);
+  font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  overflow: hidden;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#hud {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 8px 20px;
+  padding: 10px 16px;
+  background: var(--panel);
+  border-bottom: 1px solid #262d3d;
+  font-size: 15px;
+}
+#hud.ukryty { visibility: hidden; }
+
+#hud-poziom { font-weight: 700; }
+.klucz { color: var(--przygaszony); }
+.klucz.zdobyty { color: var(--klucz); font-weight: 600; }
+.mgla {
+  padding: 2px 8px;
+  border-radius: 999px;
+  background: #2a3145;
+  color: #c9d4e8;
+}
+.komunikat { color: var(--klucz); min-width: 1px; }
+.skroty { margin-left: auto; color: var(--przygaszony); }
+
+#obszar {
+  position: relative;
+  flex: 1;
+  min-height: 0;
+}
+
+#plansza {
+  display: block;
+  position: absolute;
+  inset: 0;
+}
+
+.nakladka {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 16px;
+  background: rgba(8, 10, 15, 0.82);
+}
+.nakladka[hidden] { display: none; }
+
+.karta {
+  max-width: 520px;
+  width: 100%;
+  padding: 28px 32px;
+  background: var(--panel);
+  border: 1px solid #2a3145;
+  border-radius: 14px;
+  text-align: center;
+}
+
+h1, h2 { margin: 0 0 12px; }
+h1 { font-size: 44px; letter-spacing: 0.04em; }
+h2 { font-size: 28px; }
+
+.rekord { color: var(--akcent); font-weight: 600; margin: 0 0 18px; }
+
+.instrukcja {
+  list-style: none;
+  padding: 0;
+  margin: 0 0 22px;
+  text-align: left;
+  line-height: 1.9;
+  color: var(--tekst);
+}
+
+.t-klucz { color: var(--klucz); }
+.t-drzwi { color: var(--drzwi); }
+
+.akcja { margin: 0; color: var(--przygaszony); }
+
+kbd {
+  display: inline-block;
+  min-width: 1.6em;
+  padding: 0 6px;
+  margin: 0 2px;
+  border: 1px solid #3a4460;
+  border-bottom-width: 2px;
+  border-radius: 5px;
+  background: #222a3b;
+  color: var(--tekst);
+  font: inherit;
+  font-size: 0.85em;
+  line-height: 1.5;
+  text-align: center;
+}
