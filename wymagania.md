@@ -5,7 +5,7 @@ Przeglądarkowa gra logiczna „Labirynt” tworzona jako ćwiczenie vibe-coding
 i łatwa do pokazania. Zakres celowo umiarkowany.
 
 **Kryterium sukcesu:** gracz uruchamia grę w przeglądarce, przechodzi kolejne coraz większe losowe labirynty
-(zdobywa klucz → dochodzi do wyjścia), a rekord poziomu zostaje zapamiętany.
+(zdobywa klucz → dochodzi do wyjścia), od poziomu 3 odkrywając planszę we mgle, a rekord poziomu zostaje zapamiętany.
 
 ## 2. Technologia
 - HTML + CSS + JavaScript (ES modules), rysowanie w `<canvas>`, bez frameworków i bundlera, bez zależności runtime.
@@ -19,7 +19,7 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 | `index.html` | Canvas, HUD, nakładki ekranów, ładowanie `src/main.js` |
 | `style.css` | Wygląd strony, HUD i nakładek |
 | `src/maze.js` | Czyste funkcje: generowanie labiryntu, BFS/odległości, wybór pozycji startu/wyjścia/klucza |
-| `src/game.js` | Stan gry i zasady: ruch, kolizje ze ścianami, klucz, wyjście, poziomy, rekord (bez DOM) |
+| `src/game.js` | Stan gry i zasady: ruch, kolizje ze ścianami, klucz, wyjście, poziomy, rekord, widoczność/mgła (bez DOM) |
 | `src/render.js` | Rysowanie stanu na canvasie |
 | `src/input.js` | Obsługa klawiatury → akcje gry |
 | `src/main.js` | Spięcie modułów, pętla/odświeżanie, przełączanie ekranów |
@@ -44,6 +44,9 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
   po osiągnięciu limitu kolejne poziomy mają rozmiar maksymalny. Gra nie ma końca.
 - Gra zawsze zaczyna się od poziomu 1.
 - Brak warunku przegranej (świadoma decyzja — brak stopera i przeciwników).
+- **Zmiana względem pierwotnego planu:** sam rozmiar labiryntu słabo podnosi trudność, bo cała plansza
+  jest widoczna i drogę widać od razu. Dlatego od poziomu 3 włącza się **mgła** (sekcja 7) — to ona jest
+  głównym źródłem trudności, rozmiar tylko ją wzmacnia.
 
 ## 6. Rozgrywka i sterowanie
 - Sterowanie wyłącznie klawiaturą: strzałki oraz WASD. Ruch skokowy o jedną komórkę;
@@ -56,16 +59,29 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
 - `Esc` — powrót do ekranu startowego (bieżący postęp poziomu przepada, rekord zostaje).
 - Pauzy nie ma (nic nie biegnie w czasie).
 
-## 7. Ekrany
+## 7. Mgła (od poziomu 3)
+- Poziomy 1–2 bez mgły (nauka zasad). Od poziomu 3 plansza jest zakryta.
+- **Widoczne** są komórki osiągalne z pozycji gracza w co najwyżej **3 krokach** po korytarzach
+  (BFS z limitem głębokości) — ściany zasłaniają widok, więc nie widać „przez mur” do sąsiedniego korytarza.
+- **Odkryte** komórki (kiedykolwiek widoczne na tym labiryncie) pozostają narysowane, ale przyciemnione;
+  nieodkryte są jednolicie ciemne (bez ścian).
+- Klucz i drzwi wyjścia rysowane są tylko na komórkach odkrytych — trzeba ich poszukać.
+- Odkrycie aktualizuje się po każdym ruchu (także nieudanym — bez zmian) i na starcie poziomu.
+- `R` (nowy labirynt) i nowy poziom zerują odkrycie.
+- Logika w `game.js` jako czyste funkcje: `widoczneKomorki(labirynt, pozycja, zasieg)` → zbiór komórek,
+  stan przechowuje zbiór odkrytych; `render.js` tylko go rysuje. Zasięg (3) i próg poziomu (3) jako stałe.
+- Ekran startowy wspomina o mgle w instrukcji; HUD od poziomu 3 pokazuje „Mgła”.
+
+## 8. Ekrany
 1. **Start:** tytuł, rekord („Najwyższy poziom: N”), instrukcja sterowania, `Enter`/`Spacja` = start.
 2. **Gra:** labirynt + HUD (numer poziomu, status klucza, skróty `R` / `Esc`).
 3. **Poziom ukończony:** „Poziom N ukończony”, `Enter`/`Spacja` = następny poziom.
 
-## 8. Zapis
+## 9. Zapis
 - `localStorage`, klucz `labirynt.najwyzszyPoziom` — najwyższy ukończony poziom.
 - Odczyt/zapis w `try/catch`; brak dostępu do storage nie może psuć gry (rekord = 0).
 
-## 9. Oprawa
+## 10. Oprawa
 - Minimalistyczna: ściany jako linie, gracz jako koło, klucz i drzwi wyjścia jako proste kształty
   (drzwi wyraźnie inne w stanie zamkniętym i otwartym). Wszystko rysowane w canvasie, bez obrazków i fontów zewnętrznych.
 - Brak dźwięku.
@@ -73,11 +89,11 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
   (`devicePixelRatio`).
 - Czytelne kontrasty kolorów (gracz, klucz, wyjście rozróżnialne także bez rozróżniania barw — kształtem).
 
-## 10. Poza zakresem
+## 11. Poza zakresem
 Stoper, limit czasu, pauza, przeciwnicy, monety/punkty, podpowiedź drogi, sterowanie dotykiem i myszą,
 dźwięk, seed labiryntu, tabela wyników online, motywy graficzne.
 
-## 11. Kryteria akceptacji / testy
+## 12. Kryteria akceptacji / testy
 Automatyczne (`node --test`):
 - Wygenerowany labirynt jest spójny (BFS ze startu odwiedza wszystkie komórki) i doskonały
   (liczba przejść = liczba komórek − 1), dla wielu rozmiarów i ziaren.
@@ -87,9 +103,12 @@ Automatyczne (`node --test`):
 - Wyjście bez klucza nie kończy poziomu; z kluczem kończy.
 - Rozmiar poziomu: 8, 10, 12… i obcięcie do limitu.
 - Rekord zapisuje się tylko, gdy nowy poziom > dotychczasowy.
+- Mgła: na poziomach 1–2 wszystkie komórki odkryte; od 3 na starcie odkryte tylko komórki w zasięgu 3 kroków.
+- `widoczneKomorki` nie zwraca komórki za ścianą (sąsiedniej fizycznie, ale odległej po korytarzu > 3).
+- Zbiór odkrytych tylko rośnie w trakcie poziomu; `R` i nowy poziom go zerują.
 
 Ręczne (w przeglądarce):
-- Pełny przebieg: start → poziom 1 → klucz → wyjście → poziom 2 (większy) → `R` → `Esc` → rekord na ekranie startowym.
+- Pełny przebieg: start → poziom 1 → klucz → wyjście → poziom 2 (większy) → poziom 3 (mgła, odkrywanie planszy) → `R` → `Esc` → rekord na ekranie startowym.
 - Po odświeżeniu strony rekord się zachowuje.
 - Zmiana rozmiaru okna nie psuje planszy.
 - Brak błędów w konsoli.
