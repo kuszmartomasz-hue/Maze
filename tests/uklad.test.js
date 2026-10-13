@@ -1,6 +1,8 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
-import { gruboscZywoplotu, dlugoscPlanszy, uklad, pas } from '../src/uklad.js';
+import { gruboscZywoplotu, dlugoscPlanszy, uklad, pas, kafle, stanPola } from '../src/uklad.js';
+import { generujLabirynt, indeks, E, S } from '../src/maze.js';
+import { mulberry32 } from './helpers.js';
 
 const lab = (szerokosc, wysokosc) => ({ szerokosc, wysokosc });
 
@@ -48,4 +50,52 @@ test('pas: naprzemiennie żywopłot i ścieżka, ostatni pas kończy planszę', 
   assert.deepEqual(pas(u, 3, 10), { start: 34, dl: 12 });
   const ostatni = pas(u, 16, 0);
   assert.equal(ostatni.start + ostatni.dl, dlugoscPlanszy(8, 12));
+});
+
+test('kafle: siatka (2N+1)×(2M+1), przejścia zgodne z maskami, labirynt prostokątny', () => {
+  const l = generujLabirynt(8, 6, mulberry32(7));
+  const pola = kafle(l);
+  assert.equal(pola.length, 17 * 13);
+  const pole = (gx, gy) => pola[gy * 17 + gx];
+
+  for (let y = 0; y < 6; y++) {
+    for (let x = 0; x < 8; x++) {
+      const i = indeks(l, x, y);
+      const k = pole(2 * x + 1, 2 * y + 1);
+      assert.equal(k.zywoplot, false);
+      assert.deepEqual(k.sasiedzi, [i]);
+      if (x < 7) assert.equal(pole(2 * x + 2, 2 * y + 1).zywoplot, !(l.przejscia[i] & E));
+      if (y < 5) assert.equal(pole(2 * x + 1, 2 * y + 2).zywoplot, !(l.przejscia[i] & S));
+    }
+  }
+  // labirynt doskonały: przejść między komórkami = komórek − 1
+  const przejscia = pola.filter((p) => !p.zywoplot && (p.gx % 2 === 0 || p.gy % 2 === 0));
+  assert.equal(przejscia.length, 8 * 6 - 1);
+  // narożniki i obwód zawsze żywopłot
+  for (const p of pola) {
+    if (p.gx % 2 === 0 && p.gy % 2 === 0) assert.ok(p.zywoplot, `narożnik ${p.gx},${p.gy}`);
+    if (p.gx === 0 || p.gy === 0 || p.gx === 16 || p.gy === 12) assert.ok(p.zywoplot, `obwód ${p.gx},${p.gy}`);
+  }
+});
+
+test('kafle: sąsiedzi pól żywopłotu, także na brzegu planszy', () => {
+  const l = generujLabirynt(8, 6, mulberry32(7));
+  const pola = kafle(l);
+  const pole = (gx, gy) => pola[gy * 17 + gx];
+  assert.deepEqual(pole(0, 0).sasiedzi, [indeks(l, 0, 0)]);
+  assert.deepEqual(pole(16, 12).sasiedzi, [indeks(l, 7, 5)]);
+  assert.deepEqual(pole(2, 0).sasiedzi, [indeks(l, 0, 0), indeks(l, 1, 0)]);
+  assert.deepEqual(pole(2, 2).sasiedzi, [indeks(l, 0, 0), indeks(l, 1, 0), indeks(l, 0, 1), indeks(l, 1, 1)]);
+  assert.deepEqual(pole(1, 0).sasiedzi, [indeks(l, 0, 0)]);
+  assert.deepEqual(pole(2, 1).sasiedzi, [indeks(l, 0, 0), indeks(l, 1, 0)]);
+  for (const p of pola) assert.ok(p.sasiedzi.length > 0 && p.sasiedzi.every((i) => i >= 0));
+});
+
+test('stan pola: widoczne ma pierwszeństwo, brak sąsiadów = nieodkryte', () => {
+  const odkryte = new Set([1, 2]);
+  const widoczne = new Set([2]);
+  assert.equal(stanPola([1, 2], odkryte, widoczne), 'widoczne');
+  assert.equal(stanPola([1, 5], odkryte, widoczne), 'odkryte');
+  assert.equal(stanPola([5, 6], odkryte, widoczne), 'nieodkryte');
+  assert.equal(stanPola([], odkryte, widoczne), 'nieodkryte');
 });
