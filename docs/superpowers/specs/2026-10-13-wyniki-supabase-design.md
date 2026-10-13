@@ -101,7 +101,11 @@ grant execute on function public.moje_miejsce() to authenticated;
 Uwagi:
 - Gracze anonimowi mają rolę `authenticated` (z `is_anonymous = true` w tokenie) — polityki działają dla nich bez zmian.
 - W `on conflict do update` wyrażenia `set` widzą stare wartości wiersza (`public.wyniki.*`), więc porównanie w `osiagniety` działa niezależnie od kolejności przypisań.
-- Po migracji: `get_advisors` (security, performance) bez ostrzeżeń dotyczących tych tabel.
+- Po migracji: `get_advisors` (security, performance) bez ostrzeżeń dotyczących tych tabel, poza jednym
+  zamierzonym: `zapisz_wynik` jako `security definer` wykonywalna przez `authenticated` — to jedyna droga
+  zapisu wyniku (brak polityk insert/update na `wyniki`).
+- Wdrożone 2026-10-13: migracje w `supabase/migrations/`; druga migracja zmienia `moje_miejsce`
+  na `security invoker` (tabela `wyniki` jest czytelna dla wszystkich, więc uprawnienia właściciela są zbędne).
 
 **Do włączenia ręcznie w panelu Supabase:** *Authentication → Sign In / Providers → Allow anonymous sign-ins*.
 
