@@ -23,6 +23,7 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 | `src/maze.js` | Czyste funkcje: generowanie labiryntu, BFS/odległości, wybór pozycji startu/wyjścia/klucza |
 | `src/game.js` | Stan gry i zasady: ruch, kolizje ze ścianami, klucz, wyjście, poziomy, rekord, widoczność/mgła (bez DOM) |
 | `src/render.js` | Rysowanie stanu na canvasie: las, żwir, żywopłot, mgła, przedmioty |
+| `src/animacje.js` | Czyste funkcje animacji: łagodzenie, ruch gracza, przejścia mgły, cząsteczki i efekty (bez DOM) |
 | `src/uklad.js` | Geometria układu blokowego (żywopłot między ścieżkami), stan mgły pól (bez DOM) |
 | `src/tekstury.js` | Ładowanie tekstur z `assets/`, `null` przy błędzie |
 | `assets/*.jpg` | Tekstury: żywopłot, żwir, las (512×512); prompty w `assets/prompty/` |
@@ -33,7 +34,7 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 | `supabase/migrations/*.sql` | Schemat bazy: tabele `wyniki`, `zapisy`, RLS, funkcje `zapisz_wynik`, `moje_miejsce` |
 | `tests/*.test.js` | Testy `maze.js`, `game.js`, `uklad.js`, `tekstury.js`, `baza.js`, `input.js` i dymny test `render.js` |
 
-`maze.js`, `game.js`, `uklad.js` i `baza.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node; `fetch` i `storage` wstrzykiwane do `baza.js`). Losowość wstrzykiwana
+`maze.js`, `game.js`, `uklad.js`, `animacje.js` i `baza.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node; `fetch` i `storage` wstrzykiwane do `baza.js`). Losowość wstrzykiwana
 jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać deterministycznego generatora.
 
 ## 4. Labirynt
@@ -104,6 +105,12 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
   zastępcze, gra działa dalej. Bez fontów zewnętrznych.
 - Gracz jako koło, klucz i drzwi wyjścia jako proste kształty rysowane w canvasie, z ciemnym obrysem
   (drzwi wyraźnie inne w stanie zamkniętym i otwartym). Mgła zakrywa i przyciemnia także żywopłot.
+- Animacje: płynny ruch gracza (120 ms) z odbiciem od ściany, unoszący się i błyszczący klucz, iskry przy
+  jego podniesieniu, pulsujące otwarte drzwi, stopniowe odkrywanie mgły (300 ms) i przyciemnianie (200 ms),
+  cienie chmur i liście nad lasem, świetliki nad odkrytym żywopłotem, wejście planszy (300 ms), rozbłysk
+  przy drzwiach po ukończeniu poziomu (600 ms, klawisze ignorowane) i pojawianie nakładek (200 ms).
+- `prefers-reduced-motion: reduce` — bez animacji: gracz skacze między polami, mgła zmienia się od razu,
+  brak tła animowanego i efektów; klatka rysowana tylko po zdarzeniach.
 - Brak dźwięku.
 - Canvas dopasowuje się do okna (także po `resize`), zachowując kwadratowe komórki; ostra grafika na ekranach HiDPI
   (`devicePixelRatio`).
@@ -131,6 +138,10 @@ Automatyczne (`node --test`):
   pola przejść zgodne z maskami labiryntu; narożniki i obwód zawsze żywopłot.
 - `limitRozmiaru` uwzględnia pasy żywopłotu (komórka ≥ 12 px).
 - Brak tekstury → `null` i rysowanie kolorem zastępczym, bez wyjątku.
+- Animacje (`animacje.js`): łagodzenie i postęp; ruch gracza — koniec = cel, przerwany ruch bez skoku,
+  odbicie nie przerywa ruchu, ograniczony ruch natychmiast; mgła — odkrycie 300 ms, przyciemnienie 200 ms,
+  tablica innego labiryntu ignorowana; cząsteczki deterministyczne; liście nigdy nad planszą.
+- Renderer: siatka pól liczona raz na labirynt; klatka w trakcie animacji bez wyjątku i z przywróconym `globalAlpha`.
 - Zapis stanu: wierne odtworzenie; ukończony poziom → następny; uszkodzone dane → brak wznowienia.
 - Nick: obcięcie spacji, maks. 20 znaków (punktów kodowych), pusty → brak wpisu.
 - `baza.js` (atrapa `fetch`): logowanie, odświeżenie tokenu, brak nowej tożsamości przy braku sieci,
@@ -143,4 +154,5 @@ Ręczne (w przeglądarce):
 - Zmiana rozmiaru okna nie psuje planszy.
 - Brak błędów w konsoli.
 - Tekstury bez widocznych szwów; klucz, drzwi i gracz czytelne na żwirze; mgła obejmuje żywopłot.
+- Animacje płynne (także przy przytrzymanej strzałce); `prefers-reduced-motion` wyłącza animacje, gra działa.
 - Wynik w tabeli po ukończeniu poziomu; zamknięcie karty → „Kontynuuj” odtwarza ten sam labirynt; tryb offline.

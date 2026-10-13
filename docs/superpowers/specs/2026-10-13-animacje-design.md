@@ -74,8 +74,8 @@ pogorszenia płynności na dużych planszach.
 - **Ukończenie poziomu:** rozbłysk przy drzwiach (pierścień światła rosnący i gasnący, 600 ms), potem
   ekran „Poziom ukończony”. W trakcie rozbłysku klawisze są ignorowane. Zapis wyniku i stanu — bez zmian
   (wysyłany od razu przy ukończeniu, nie po animacji).
-- **Nakładki** (`.nakladka`): pojawianie/znikanie przez `opacity` 200 ms (CSS); `hidden` ustawiane po zakończeniu
-  znikania.
+- **Nakładki** (`.nakladka`): pojawianie przez `opacity` 200 ms (CSS `@keyframes`). Bez animowanego znikania —
+  opóźnione `hidden` ścigałoby się z szybkimi klawiszami, a przejście do gry wygładza wejście planszy (300 ms).
 
 ## 7. Ograniczony ruch (`prefers-reduced-motion: reduce`)
 
