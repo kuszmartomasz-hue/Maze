@@ -2,7 +2,7 @@
 
 Projekty z trzeciego dnia warsztatów vibe-coding.
 
-## Labirynt
+## Zaklęty Ogród
 
 Przeglądarkowa gra logiczna — wymagania w [wymagania.md](wymagania.md).
 

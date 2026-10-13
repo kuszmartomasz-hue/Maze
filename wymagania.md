@@ -1,7 +1,7 @@
-# Labirynt — wymagania
+# Zaklęty Ogród — wymagania
 
 ## 1. Cel
-Przeglądarkowa gra logiczna „Labirynt” tworzona jako ćwiczenie vibe-codingu. Ma być kompletna, działająca
+Przeglądarkowa gra logiczna „Zaklęty Ogród” (labirynt) tworzona jako ćwiczenie vibe-codingu. Ma być kompletna, działająca
 i łatwa do pokazania. Zakres celowo umiarkowany.
 
 **Kryterium sukcesu:** gracz uruchamia grę w przeglądarce, przechodzi kolejne coraz większe losowe labirynty
