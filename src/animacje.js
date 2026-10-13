@@ -49,9 +49,9 @@ export function nowyRuch(poprzedni, cel, czas, ograniczony = false) {
   };
 }
 
-/** Odbicie od ściany w kierunku {dx, dy}: wychylenie i powrót. Trwający ruch nie jest przerywany. */
+/** Odbicie od ściany w kierunku {dx, dy}: wychylenie i powrót. Trwający ruch ani odbicie nie są przerywane. */
 export function odbicie(poprzedni, kierunek, czas, ograniczony = false) {
-  const wRuchu = !poprzedni.odbicie && postep(poprzedni.start, czas, poprzedni.trwanie) < 1;
+  const wRuchu = postep(poprzedni.start, czas, poprzedni.trwanie) < 1;
   if (ograniczony || wRuchu) return poprzedni;
   return {
     od: { ...poprzedni.do },

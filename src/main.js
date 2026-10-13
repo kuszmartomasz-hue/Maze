@@ -67,6 +67,7 @@ const ograniczonyRuch = window.matchMedia('(prefers-reduced-motion: reduce)');
 let anim = null; // stan animacji bieżącego labiryntu (animacje.js)
 let tlo = { chmury: [], liscie: [] }; // cienie chmur i liście nad lasem
 let warstwa = null; // statyczna plansza w pamięci: { canvas, labirynt, w, h, dpr, tekstury }
+let zlozenie = null; // płótno pomocnicze: plansza z mgłą w nieprzezroczystą całość na czas wejścia planszy
 let blokada = false; // rozbłysk po ukończeniu poziomu — klawisze ignorowane
 let petlaDziala = false;
 
@@ -132,6 +133,24 @@ function warstwaPlanszy() {
   return c;
 }
 
+/**
+ * Plansza (warstwa + ruchoma część) złożona w pomocniczym płótnie tej samej wielkości co warstwa —
+ * krycie wejścia obejmuje wtedy całość, więc labirynt pod mgłą nie prześwituje.
+ */
+function zlozPlansze(czas, w, h) {
+  const warstwaCanvas = warstwaPlanszy();
+  const dpr = warstwa.dpr;
+  zlozenie ??= document.createElement('canvas');
+  const zctx = (zlozenie.width === warstwaCanvas.width && zlozenie.height === warstwaCanvas.height)
+    ? zlozenie.getContext('2d')
+    : dopasujCanvas(zlozenie, w, h, dpr);
+  zctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  zctx.clearRect(0, 0, w, h);
+  zctx.drawImage(warstwaCanvas, 0, 0, w, h);
+  rysujKlatke(zctx, stan, w, h, anim, czas);
+  return zlozenie;
+}
+
 /** Jedna klatka: las, cienie chmur i liście, plansza z warstwy w pamięci i jej ruchoma część. */
 function klatka(czas) {
   if (!ctx) return;
@@ -141,15 +160,18 @@ function klatka(czas) {
   const { w, h } = obszarGry();
   ctx.save();
   ctx.translate(MARGINES, MARGINES);
-  if (anim.wejscie != null) {
-    const { alfa, skala } = wejsciePlanszy(anim.wejscie, czas);
+  const wejscie = anim.wejscie != null ? wejsciePlanszy(anim.wejscie, czas) : null;
+  if (wejscie && wejscie.alfa < 1) {
+    const { alfa, skala } = wejscie;
     ctx.globalAlpha = alfa;
     ctx.translate(w / 2, h / 2);
     ctx.scale(skala, skala);
     ctx.translate(-w / 2, -h / 2);
+    ctx.drawImage(zlozPlansze(czas, w, h), 0, 0, w, h);
+  } else {
+    ctx.drawImage(warstwaPlanszy(), 0, 0, w, h);
+    rysujKlatke(ctx, stan, w, h, anim, czas);
   }
-  ctx.drawImage(warstwaPlanszy(), 0, 0, w, h);
-  rysujKlatke(ctx, stan, w, h, anim, czas);
   ctx.restore();
 }
 

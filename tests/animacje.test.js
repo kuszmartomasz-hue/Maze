@@ -66,8 +66,21 @@ test('odbicie: wychylenie w stronę ściany i powrót; nie przerywa trwającego 
 
   const wRuchu = nowyRuch(stoi, { x: 5, y: 4 }, 1000);
   assert.equal(odbicie(wRuchu, { dx: 1, dy: 0 }, 1050), wRuchu, 'odbicie w trakcie ruchu ignorowane');
-  // po odbiciu kolejne odbicie jest dozwolone (seria uderzeń w ścianę)
-  assert.notEqual(odbicie(o, { dx: 1, dy: 0 }, 550), o);
+  // po zakończeniu odbicia kolejne jest dozwolone (seria uderzeń w ścianę)
+  const po = odbicie(o, { dx: 1, dy: 0 }, 500 + CZAS_RUCHU);
+  assert.notEqual(po, o);
+  assert.equal(po.start, 500 + CZAS_RUCHU);
+});
+
+test('drugie odbicie w trakcie pierwszego nie restartuje', () => {
+  const stoi = ruchStaly({ x: 4, y: 4 });
+  const o = odbicie(stoi, { dx: 1, dy: 0 }, 500);
+  assert.equal(odbicie(o, { dx: 1, dy: 0 }, 533), o, 'przytrzymana strzałka: auto-powtarzanie nie restartuje');
+  assert.equal(odbicie(o, { dx: 1, dy: 0 }, 500 + CZAS_RUCHU - 1), o);
+  // kierunek pionowy / ujemny
+  const g = odbicie(stoi, { dx: 0, dy: -1 }, 900);
+  assert.equal(odbicie(g, { dx: 0, dy: -1 }, 933), g);
+  blisko(pozycjaGracza(g, 900 + CZAS_RUCHU / 2).y, 4 - ODBICIE, 'szczyt odbicia w górę');
 });
 
 test('ruch i odbicie przy ograniczonym ruchu: od razu na polu, bez wychylenia', () => {
