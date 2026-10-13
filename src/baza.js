@@ -80,8 +80,9 @@ export function utworzBaze({
         zapiszSesje(s);
         return s;
       } catch (e) {
-        // Tylko odrzucony token (4xx) uzasadnia nowe konto; brak sieci nie może zabrać graczowi tożsamości.
-        if (!(e.status >= 400 && e.status < 500)) throw e;
+        // Tylko odrzucony token (400/401) uzasadnia nowe konto; brak sieci, limit żądań (429)
+        // ani błąd pośrednika nie mogą zabrać graczowi tożsamości.
+        if (e.status !== 400 && e.status !== 401) throw e;
       }
     }
     const s = zOdpowiedzi(await zadanie('/auth/v1/signup', { metoda: 'POST', tresc: {} }));

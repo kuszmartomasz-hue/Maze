@@ -80,6 +80,24 @@ test('sesja: refresh bez sieci NIE zakłada nowego konta (tożsamość zostaje)'
   assert.equal(await b.zapiszWynik('Ania', 3), false);
 });
 
+test('sesja: 429 i inne 4xx poza 400/401 przy odświeżaniu NIE zakładają nowego konta', async () => {
+  for (const status of [403, 408, 429]) {
+    const zapisana = { access_token: 'T0', refresh_token: 'R0', expires_at: 10, user_id: 'U0' };
+    const storage = pamiecStorage({ [KLUCZ_SESJI]: JSON.stringify(zapisana) });
+    const { b, f } = baza({ ...LOGOWANIE, 'POST /auth/v1/token': { status, tresc: { error_code: 'over_request_rate_limit' } } }, { storage });
+    assert.equal(await b.sesja(), null, `status ${status}`);
+    assert.equal(f.ile('POST', '/auth/v1/signup'), 0, `status ${status}`);
+    assert.deepEqual(JSON.parse(storage.dane[KLUCZ_SESJI]), zapisana);
+  }
+});
+
+test('sesja: odrzucony token 401 → nowe logowanie', async () => {
+  const storage = pamiecStorage({ [KLUCZ_SESJI]: JSON.stringify({ access_token: 'T0', refresh_token: 'R0', expires_at: 10, user_id: 'U0' }) });
+  const { b, f } = baza({ ...LOGOWANIE, 'POST /auth/v1/token': { status: 401, tresc: {} } }, { storage });
+  assert.equal((await b.sesja()).user_id, 'U1');
+  assert.equal(f.ile('POST', '/auth/v1/signup'), 1);
+});
+
 test('sesja: uszkodzona sesja w storage → nowe logowanie', async () => {
   const storage = pamiecStorage({ [KLUCZ_SESJI]: '{zle' });
   const { b, f } = baza(LOGOWANIE, { storage });
