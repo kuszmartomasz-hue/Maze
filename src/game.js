@@ -1,5 +1,5 @@
 // Stan gry i zasady: ruch, klucz, wyjście, poziomy, rekord, mgła. Bez DOM i window.
-import { generujLabirynt, wybierzPozycje, odleglosci, indeks, pozycjaZIndeksu, KIERUNKI } from './maze.js';
+import { generujLabirynt, wybierzPozycje, odleglosci, indeks, pozycjaZIndeksu, wSiatce, KIERUNKI } from './maze.js';
 
 export const ROZMIAR_STARTOWY = 8;
 export const PRZYROST_ROZMIARU = 2;
@@ -123,4 +123,125 @@ export function zapiszRekord(storage, poziom) {
     // brak dostępu do storage nie psuje gry
   }
   return poziom;
+}
+
+export const WERSJA_ZAPISU = 2;
+export const MAX_POZIOM = 500;
+export const MAX_BOK_ZAPISU = 200;
+
+/** Maski przejść jako napis hex — 1 znak na komórkę (zwarty zapis w jsonb). */
+const przejsciaDoNapisu = (przejscia) => Array.from(przejscia, (m) => m.toString(16)).join('');
+
+/** Zbiór odkrytych komórek jako bitmapa hex — 4 komórki na znak. */
+function odkryteDoNapisu(odkryte, liczba) {
+  const cyfry = new Uint8Array(Math.ceil(liczba / 4));
+  for (const i of odkryte) cyfry[i >> 2] |= 1 << (i & 3);
+  return Array.from(cyfry, (c) => c.toString(16)).join('');
+}
+
+function odkryteZNapisu(napis, liczba) {
+  const wynik = new Set();
+  for (let i = 0; i < liczba; i++) if (parseInt(napis[i >> 2], 16) & (1 << (i & 3))) wynik.add(i);
+  return wynik;
+}
+
+const HEX = /^[0-9a-f]*$/;
+
+/** Stan gry → prosty obiekt JSON do zapisu w bazie. Po ukończonym poziomie — wskazanie następnego. */
+export function stanDoZapisu(stan) {
+  if (stan.ukonczony) return { wersja: WERSJA_ZAPISU, poziom: stan.poziom + 1, nowy: true };
+  const { labirynt } = stan;
+  return {
+    wersja: WERSJA_ZAPISU,
+    poziom: stan.poziom,
+    szerokosc: labirynt.szerokosc,
+    wysokosc: labirynt.wysokosc,
+    przejscia: przejsciaDoNapisu(labirynt.przejscia),
+    gracz: { x: stan.gracz.x, y: stan.gracz.y },
+    klucz: { x: stan.klucz.x, y: stan.klucz.y },
+    wyjscie: { x: stan.wyjscie.x, y: stan.wyjscie.y },
+    maKlucz: stan.maKlucz,
+    odkryte: odkryteDoNapisu(stan.odkryte, labirynt.przejscia.length),
+  };
+}
+
+const calkowita = (v, min, max) => Number.isInteger(v) && v >= min && v <= max;
+
+/**
+ * Zapis z bazy → stan gry albo null, gdy dane są uszkodzone lub niespójne (pochodzą od klienta — nie ufamy im).
+ * `{ nowy: true }` → nowy labirynt na wskazanym poziomie; pełny zapis zachowuje swój rozmiar niezależnie od `limit`.
+ */
+export function stanZZapisu(dane, limit = Infinity, rng = Math.random) {
+  if (!dane || typeof dane !== 'object' || dane.wersja !== WERSJA_ZAPISU) return null;
+  if (!calkowita(dane.poziom, 1, MAX_POZIOM)) return null;
+  if (dane.nowy === true) return nowyPoziom(dane.poziom, limit, rng);
+
+  const { szerokosc, wysokosc } = dane;
+  if (!calkowita(szerokosc, 2, MAX_BOK_ZAPISU) || !calkowita(wysokosc, 2, MAX_BOK_ZAPISU)) return null;
+  const liczba = szerokosc * wysokosc;
+  if (typeof dane.przejscia !== 'string' || dane.przejscia.length !== liczba || !HEX.test(dane.przejscia)) return null;
+  const przejscia = Uint8Array.from(dane.przejscia, (c) => parseInt(c, 16));
+  const labirynt = { szerokosc, wysokosc, przejscia };
+
+  // Każde przejście w siatce i symetryczne (A→B ⇔ B→A)
+  for (let i = 0; i < przejscia.length; i++) {
+    const { x, y } = pozycjaZIndeksu(labirynt, i);
+    for (const k of KIERUNKI) {
+      if (!(przejscia[i] & k.bit)) continue;
+      if (!wSiatce(labirynt, x + k.dx, y + k.dy)) return null;
+      if (!(przejscia[indeks(labirynt, x + k.dx, y + k.dy)] & k.przeciwny)) return null;
+    }
+  }
+
+  const pozycja = (p) => p !== null && typeof p === 'object'
+    && calkowita(p.x, 0, szerokosc - 1) && calkowita(p.y, 0, wysokosc - 1);
+  if (![dane.gracz, dane.klucz, dane.wyjscie].every(pozycja)) return null;
+  if (typeof dane.maKlucz !== 'boolean') return null;
+  if (typeof dane.odkryte !== 'string' || dane.odkryte.length !== Math.ceil(liczba / 4) || !HEX.test(dane.odkryte)) return null;
+
+  // Spójność: z pozycji gracza osiągalne wszystkie komórki
+  if (odleglosci(labirynt, indeks(labirynt, dane.gracz.x, dane.gracz.y)).includes(-1)) return null;
+
+  const stan = {
+    poziom: dane.poziom,
+    mgla: czyMgla(dane.poziom),
+    labirynt,
+    gracz: { x: dane.gracz.x, y: dane.gracz.y },
+    klucz: { x: dane.klucz.x, y: dane.klucz.y },
+    wyjscie: { x: dane.wyjscie.x, y: dane.wyjscie.y },
+    maKlucz: dane.maKlucz,
+    ukonczony: false,
+    odkryte: odkryteZNapisu(dane.odkryte, liczba),
+  };
+  aktualizujWidocznosc(stan);
+  return stan;
+}
+
+export const KLUCZ_NICKU = 'labirynt.nick';
+export const MAX_NICK = 20;
+
+/** Nick do tabeli: bez spacji na brzegach, maks. MAX_NICK punktów kodowych (jak char_length w bazie); pusty → null. */
+export function normalizujNick(tekst) {
+  if (typeof tekst !== 'string') return null;
+  const nick = Array.from(tekst.trim()).slice(0, MAX_NICK).join('').trim();
+  return nick || null;
+}
+
+/** Odczyt nicku; brak dostępu do storage → null. */
+export function wczytajNick(storage) {
+  try {
+    return normalizujNick(storage.getItem(KLUCZ_NICKU));
+  } catch {
+    return null;
+  }
+}
+
+/** Zapis nicku (null usuwa); brak dostępu do storage nie psuje gry. */
+export function zapiszNick(storage, nick) {
+  try {
+    if (nick) storage.setItem(KLUCZ_NICKU, nick);
+    else storage.removeItem(KLUCZ_NICKU);
+  } catch {
+    // brak dostępu do storage nie psuje gry
+  }
 }

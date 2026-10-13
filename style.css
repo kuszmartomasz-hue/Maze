@@ -80,6 +80,8 @@ body {
   border: 1px solid #2a3145;
   border-radius: 14px;
   text-align: center;
+  max-height: 100%;
+  overflow-y: auto;
 }
 
 h1, h2 { margin: 0 0 12px; }
@@ -117,3 +119,39 @@ kbd {
   line-height: 1.5;
   text-align: center;
 }
+
+.pole-nicku {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  margin: 0 0 4px;
+  color: var(--przygaszony);
+}
+.pole-nicku input {
+  width: 12em;
+  padding: 6px 10px;
+  border: 1px solid #3a4460;
+  border-radius: 6px;
+  background: #222a3b;
+  color: var(--tekst);
+  font: inherit;
+}
+.pole-nicku input:focus { outline: 2px solid var(--akcent); outline-offset: 1px; }
+
+.uwaga { margin: 0 0 14px; color: var(--przygaszony); font-size: 0.85em; }
+
+.ranking { margin-top: 20px; padding-top: 14px; border-top: 1px solid #2a3145; }
+.ranking h3 { margin: 0 0 8px; font-size: 16px; }
+#ranking-lista {
+  max-width: 300px;
+  margin: 0 auto 8px;
+  padding: 0;
+  list-style: none;
+  text-align: left;
+}
+#ranking-lista li { display: flex; gap: 10px; padding: 2px 8px; border-radius: 6px; }
+#ranking-lista li.ja { background: #2a3145; outline: 1px solid var(--akcent); }
+#ranking-lista .miejsce { width: 2em; text-align: right; color: var(--przygaszony); }
+#ranking-lista .nick { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+#ranking-lista .poziom { font-weight: 600; color: var(--akcent); }
