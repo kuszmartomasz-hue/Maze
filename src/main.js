@@ -1,10 +1,16 @@
 // Spięcie modułów, odświeżanie i przełączanie ekranów.
 import {
-  nowyPoziom, nowyLabirynt, ruch, limitRozmiaru, wczytajRekord, zapiszRekord,
+  nowyPoziom, nowyLabirynt, ruch, limitRozmiaru, wczytajRekord, zapiszRekord, RUCHY,
   stanDoZapisu, stanZZapisu, normalizujNick, wczytajNick, zapiszNick,
 } from './game.js';
 import { utworzBaze } from './baza.js';
-import { dopasujCanvas, rysuj, rysujTlo } from './render.js';
+import {
+  dopasujCanvas, rysujTlo, rysujPlansze, rysujKlatke, rysujTloAnimowane, polaPlanszy, stanyPol,
+} from './render.js';
+import { uklad } from './uklad.js';
+import {
+  ruchStaly, nowyRuch, odbicie, aktualizujMgle, iskry, swietliki, chmury, liscie, wejsciePlanszy, CZAS_ROZBLYSKU,
+} from './animacje.js';
 import { wczytajTekstury, BEZ_TEKSTUR } from './tekstury.js';
 import { podlaczKlawiature } from './input.js';
 
@@ -57,10 +63,19 @@ let ostatniZapis = 0;
 let zapisSprawdzony = false; // odczyt zapisu z bazy zakończony (także błędem)
 let czekaNaZapis = false; // Enter wciśnięty przed końcem odczytu — start po odczycie
 
+const ograniczonyRuch = window.matchMedia('(prefers-reduced-motion: reduce)');
+let anim = null; // stan animacji bieżącego labiryntu (animacje.js)
+let tlo = { chmury: [], liscie: [] }; // cienie chmur i liście nad lasem
+let warstwa = null; // statyczna plansza w pamięci: { canvas, labirynt, w, h, dpr, tekstury }
+let blokada = false; // rozbłysk po ukończeniu poziomu — klawisze ignorowane
+let petlaDziala = false;
+
 function dopasuj() {
   const r = obszar.getBoundingClientRect();
   wymiary = { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
   ctx = dopasujCanvas(canvas, wymiary.w, wymiary.h, window.devicePixelRatio || 1);
+  tlo.chmury = ograniczony() ? [] : chmury(wymiary.w, wymiary.h, Math.random);
+  odswiezLiscie();
   odswiez();
 }
 
@@ -68,13 +83,94 @@ function limit() {
   return limitRozmiaru(wymiary.w - 2 * MARGINES, wymiary.h - 2 * MARGINES);
 }
 
-function odswiez() {
+const teraz = () => performance.now();
+const ograniczony = () => ograniczonyRuch.matches;
+const obszarGry = () => ({ w: wymiary.w - 2 * MARGINES, h: wymiary.h - 2 * MARGINES });
+
+/** Nowy stan animacji dla bieżącego labiryntu (nowy poziom, `R`, wznowienie). */
+function nowaAnimacja() {
+  const czas = teraz();
+  const ogr = ograniczony();
+  anim = {
+    ograniczony: ogr,
+    ruch: ruchStaly(stan.gracz),
+    mgla: aktualizujMgle(null, stanyPol(stan), czas),
+    iskry: [],
+    swietliki: ogr ? [] : swietliki(polaPlanszy(stan.labirynt), Math.random),
+    wejscie: ogr ? null : czas,
+    rozblysk: null,
+  };
+}
+
+/** Liście tylko w pasach lasu obok planszy (na ekranie startowym — na całej szerokości). */
+function odswiezLiscie() {
+  if (ograniczony()) {
+    tlo.liscie = [];
+    return;
+  }
+  let plansza = null;
+  if (stan) {
+    const { w, h } = obszarGry();
+    const u = uklad(stan.labirynt, w, h);
+    plansza = { x: MARGINES + u.ox, y: MARGINES + u.oy, szer: u.szer, wys: u.wys };
+  }
+  tlo.liscie = liscie(wymiary.w, wymiary.h, plansza, Math.random);
+}
+
+/** Statyczna plansza (cień, żwir, żywopłot) w pamięci — przebudowa tylko po zmianie labiryntu, rozmiaru lub tekstur. */
+function warstwaPlanszy() {
+  const dpr = window.devicePixelRatio || 1;
+  const { w, h } = obszarGry();
+  const aktualna = warstwa && warstwa.labirynt === stan.labirynt && warstwa.w === w && warstwa.h === h
+    && warstwa.dpr === dpr && warstwa.tekstury === tekstury;
+  if (aktualna) return warstwa.canvas;
+  const c = warstwa?.canvas ?? document.createElement('canvas');
+  const wctx = dopasujCanvas(c, w, h, dpr);
+  wctx.clearRect(0, 0, w, h);
+  rysujPlansze(wctx, stan, w, h, tekstury);
+  warstwa = { canvas: c, labirynt: stan.labirynt, w, h, dpr, tekstury };
+  return c;
+}
+
+/** Jedna klatka: las, cienie chmur i liście, plansza z warstwy w pamięci i jej ruchoma część. */
+function klatka(czas) {
   if (!ctx) return;
   rysujTlo(ctx, wymiary.w, wymiary.h, tekstury);
+  if (!ograniczony()) rysujTloAnimowane(ctx, wymiary.w, wymiary.h, tlo.chmury, tlo.liscie, czas);
+  if (!stan || !anim || ekran === 'start') return;
+  const { w, h } = obszarGry();
   ctx.save();
   ctx.translate(MARGINES, MARGINES);
-  rysuj(ctx, ekran === 'start' ? null : stan, wymiary.w - 2 * MARGINES, wymiary.h - 2 * MARGINES, tekstury);
+  if (anim.wejscie != null) {
+    const { alfa, skala } = wejsciePlanszy(anim.wejscie, czas);
+    ctx.globalAlpha = alfa;
+    ctx.translate(w / 2, h / 2);
+    ctx.scale(skala, skala);
+    ctx.translate(-w / 2, -h / 2);
+  }
+  ctx.drawImage(warstwaPlanszy(), 0, 0, w, h);
+  rysujKlatke(ctx, stan, w, h, anim, czas);
   ctx.restore();
+}
+
+function petla(czas) {
+  if (ograniczony()) {
+    petlaDziala = false;
+    klatka(czas);
+    return;
+  }
+  klatka(czas);
+  requestAnimationFrame(petla);
+}
+
+/** Bez ograniczonego ruchu klatki rysuje pętla; przy ograniczonym — jedna klatka po każdym zdarzeniu. */
+function odswiez() {
+  if (!ctx) return;
+  if (ograniczony()) klatka(teraz());
+  else if (!petlaDziala) {
+    petlaDziala = true;
+    requestAnimationFrame(petla);
+  }
   aktualizujHud();
 }
 
@@ -195,11 +291,13 @@ function pokazEkran(nazwa) {
     if (!nick()) poleNicku.focus(); // pisanie nicku od razu trafia do pola, a nie w skróty gry
   }
   hudKomunikat.textContent = '';
+  odswiezLiscie();
   odswiez();
 }
 
 function rozpocznijPoziom(poziom) {
   stan = nowyPoziom(poziom, limit());
+  nowaAnimacja();
   pokazEkran('gra');
   zapiszStanGry({ odrazu: true });
 }
@@ -218,11 +316,28 @@ function wznow() {
     return;
   }
   stan = odtworzony;
+  nowaAnimacja();
   pokazEkran('gra');
   zapiszStanGry({ odrazu: true }); // dla { nowy: true } utrwala wylosowany labirynt
 }
 
+/** Rozbłysk przy drzwiach, potem ekran „ukończony”; przy ograniczonym ruchu od razu. */
+function zakonczPoziom(czas) {
+  if (anim.ograniczony) {
+    pokazEkran('ukonczony');
+    return;
+  }
+  anim.rozblysk = czas;
+  blokada = true;
+  aktualizujHud();
+  setTimeout(() => {
+    blokada = false;
+    pokazEkran('ukonczony');
+  }, CZAS_ROZBLYSKU);
+}
+
 function obsluz(akcja, powtorzenie) {
+  if (blokada) return;
   if (ekran === 'start') {
     if (powtorzenie) return;
     if (akcja === 'potwierdz') {
@@ -250,6 +365,7 @@ function obsluz(akcja, powtorzenie) {
     case 'nowy':
       if (powtorzenie) return;
       nowyLabirynt(stan);
+      nowaAnimacja();
       hudKomunikat.textContent = '';
       zapiszStanGry({ odrazu: true });
       break;
@@ -258,17 +374,23 @@ function obsluz(akcja, powtorzenie) {
     case 'lewo':
     case 'prawo': {
       const zdarzenie = ruch(stan, akcja);
+      const czas = teraz();
+      if (zdarzenie === 'sciana') anim.ruch = odbicie(anim.ruch, RUCHY[akcja], czas, anim.ograniczony);
+      else anim.ruch = nowyRuch(anim.ruch, stan.gracz, czas, anim.ograniczony);
+      anim.mgla = aktualizujMgle(anim.mgla, stanyPol(stan), czas, anim.ograniczony);
       if (zdarzenie === 'klucz') {
+        if (!anim.ograniczony) anim.iskry = iskry(stan.klucz.x, stan.klucz.y, Math.random, czas);
         komunikat('Klucz zdobyty!');
         zapiszStanGry({ odrazu: true });
       } else if (zdarzenie === 'zamkniete') {
         komunikat('Potrzebujesz klucza');
       } else if (zdarzenie === 'ukonczony') {
+        // zapisy od razu, nie po animacji
         zapiszRekord(storage, stan.poziom);
         if (nick()) baza.zapiszWynik(nick(), stan.poziom);
         zapiszStanGry({ odrazu: true }); // zapis wskazuje następny poziom
         ukonczonyTytul.textContent = `Poziom ${stan.poziom} ukończony`;
-        pokazEkran('ukonczony');
+        zakonczPoziom(czas);
         return;
       } else if (zdarzenie === 'ruch') {
         zapiszStanGry();
@@ -289,6 +411,11 @@ poleNicku.addEventListener('change', aktualizujNick);
 podlaczKlawiature(window, obsluz);
 window.addEventListener('resize', dopasuj);
 new ResizeObserver(dopasuj).observe(obszar);
+// Zmiana ustawienia systemowego w trakcie gry — nowy stan animacji i tło zgodne z ustawieniem.
+ograniczonyRuch.addEventListener('change', () => {
+  if (stan) nowaAnimacja();
+  dopasuj();
+});
 // Zamknięcie karty w trakcie gry — ostatni zapis z keepalive, żeby żądanie przeżyło stronę.
 window.addEventListener('pagehide', () => {
   if (stan && ekran === 'gra') zapiszStanGry({ odrazu: true, keepalive: true });

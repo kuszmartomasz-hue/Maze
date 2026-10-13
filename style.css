@@ -155,3 +155,10 @@ kbd {
 #ranking-lista .miejsce { width: 2em; text-align: right; color: var(--przygaszony); }
 #ranking-lista .nick { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 #ranking-lista .poziom { font-weight: 600; color: var(--akcent); }
+
+.nakladka:not([hidden]) { animation: pojaw 200ms ease-out; }
+@keyframes pojaw { from { opacity: 0; } }
+
+@media (prefers-reduced-motion: reduce) {
+  .nakladka:not([hidden]) { animation: none; }
+}
