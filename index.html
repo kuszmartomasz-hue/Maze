@@ -23,13 +23,26 @@
       <div class="karta">
         <h1>Zaklęty Ogród</h1>
         <p id="rekord" class="rekord">Najwyższy poziom: 0</p>
+        <label class="pole-nicku">Twój nick
+          <input id="nick" type="text" maxlength="20" autocomplete="nickname" spellcheck="false" placeholder="np. Ania">
+        </label>
+        <p id="nick-uwaga" class="uwaga">Bez nicku wynik nie trafi do tabeli</p>
         <ul class="instrukcja">
           <li><kbd>←</kbd><kbd>↑</kbd><kbd>→</kbd><kbd>↓</kbd> lub <kbd>W</kbd><kbd>A</kbd><kbd>S</kbd><kbd>D</kbd> — ruch</li>
           <li>Zdobądź <strong class="t-klucz">klucz</strong>, potem dojdź do <strong class="t-drzwi">wyjścia</strong>.</li>
           <li>Od poziomu 3 plansza tonie we <strong>mgle</strong> — widzisz tylko 3 kroki wzdłuż korytarzy.</li>
-          <li><kbd>R</kbd> — nowy labirynt, <kbd>Esc</kbd> — powrót do menu</li>
+          <li><kbd>R</kbd> — nowy labirynt, <kbd>Esc</kbd> — powrót do menu (gra się zapisuje)</li>
         </ul>
-        <p class="akcja"><kbd>Enter</kbd> / <kbd>Spacja</kbd> — start</p>
+        <p id="akcja-start" class="akcja"><kbd>Enter</kbd> / <kbd>Spacja</kbd> — start</p>
+        <p id="akcja-wznow" class="akcja" hidden>
+          <kbd>Enter</kbd> — kontynuuj (<span id="wznow-poziom">poziom 1</span>) · <kbd>N</kbd> — nowa gra
+        </p>
+        <section class="ranking" aria-labelledby="ranking-tytul">
+          <h3 id="ranking-tytul">Tabela wyników</h3>
+          <p id="ranking-status" class="uwaga">Wczytywanie…</p>
+          <ol id="ranking-lista" hidden></ol>
+          <p id="ranking-ja" class="uwaga" hidden></p>
+        </section>
       </div>
     </section>
 
