@@ -125,9 +125,27 @@ export function zapiszRekord(storage, poziom) {
   return poziom;
 }
 
-export const WERSJA_ZAPISU = 1;
+export const WERSJA_ZAPISU = 2;
 export const MAX_POZIOM = 500;
-const MAX_BOK_ZAPISU = 200;
+export const MAX_BOK_ZAPISU = 200;
+
+/** Maski przejść jako napis hex — 1 znak na komórkę (zwarty zapis w jsonb). */
+const przejsciaDoNapisu = (przejscia) => Array.from(przejscia, (m) => m.toString(16)).join('');
+
+/** Zbiór odkrytych komórek jako bitmapa hex — 4 komórki na znak. */
+function odkryteDoNapisu(odkryte, liczba) {
+  const cyfry = new Uint8Array(Math.ceil(liczba / 4));
+  for (const i of odkryte) cyfry[i >> 2] |= 1 << (i & 3);
+  return Array.from(cyfry, (c) => c.toString(16)).join('');
+}
+
+function odkryteZNapisu(napis, liczba) {
+  const wynik = new Set();
+  for (let i = 0; i < liczba; i++) if (parseInt(napis[i >> 2], 16) & (1 << (i & 3))) wynik.add(i);
+  return wynik;
+}
+
+const HEX = /^[0-9a-f]*$/;
 
 /** Stan gry → prosty obiekt JSON do zapisu w bazie. Po ukończonym poziomie — wskazanie następnego. */
 export function stanDoZapisu(stan) {
@@ -138,12 +156,12 @@ export function stanDoZapisu(stan) {
     poziom: stan.poziom,
     szerokosc: labirynt.szerokosc,
     wysokosc: labirynt.wysokosc,
-    przejscia: Array.from(labirynt.przejscia),
+    przejscia: przejsciaDoNapisu(labirynt.przejscia),
     gracz: { x: stan.gracz.x, y: stan.gracz.y },
     klucz: { x: stan.klucz.x, y: stan.klucz.y },
     wyjscie: { x: stan.wyjscie.x, y: stan.wyjscie.y },
     maKlucz: stan.maKlucz,
-    odkryte: [...stan.odkryte],
+    odkryte: odkryteDoNapisu(stan.odkryte, labirynt.przejscia.length),
   };
 }
 
@@ -158,11 +176,12 @@ export function stanZZapisu(dane, limit = Infinity, rng = Math.random) {
   if (!calkowita(dane.poziom, 1, MAX_POZIOM)) return null;
   if (dane.nowy === true) return nowyPoziom(dane.poziom, limit, rng);
 
-  const { szerokosc, wysokosc, przejscia } = dane;
+  const { szerokosc, wysokosc } = dane;
   if (!calkowita(szerokosc, 2, MAX_BOK_ZAPISU) || !calkowita(wysokosc, 2, MAX_BOK_ZAPISU)) return null;
-  if (!Array.isArray(przejscia) || przejscia.length !== szerokosc * wysokosc) return null;
-  if (!przejscia.every((m) => calkowita(m, 0, 15))) return null;
-  const labirynt = { szerokosc, wysokosc, przejscia: Uint8Array.from(przejscia) };
+  const liczba = szerokosc * wysokosc;
+  if (typeof dane.przejscia !== 'string' || dane.przejscia.length !== liczba || !HEX.test(dane.przejscia)) return null;
+  const przejscia = Uint8Array.from(dane.przejscia, (c) => parseInt(c, 16));
+  const labirynt = { szerokosc, wysokosc, przejscia };
 
   // Każde przejście w siatce i symetryczne (A→B ⇔ B→A)
   for (let i = 0; i < przejscia.length; i++) {
@@ -178,7 +197,7 @@ export function stanZZapisu(dane, limit = Infinity, rng = Math.random) {
     && calkowita(p.x, 0, szerokosc - 1) && calkowita(p.y, 0, wysokosc - 1);
   if (![dane.gracz, dane.klucz, dane.wyjscie].every(pozycja)) return null;
   if (typeof dane.maKlucz !== 'boolean') return null;
-  if (!Array.isArray(dane.odkryte) || !dane.odkryte.every((i) => calkowita(i, 0, przejscia.length - 1))) return null;
+  if (typeof dane.odkryte !== 'string' || dane.odkryte.length !== Math.ceil(liczba / 4) || !HEX.test(dane.odkryte)) return null;
 
   // Spójność: z pozycji gracza osiągalne wszystkie komórki
   if (odleglosci(labirynt, indeks(labirynt, dane.gracz.x, dane.gracz.y)).includes(-1)) return null;
@@ -192,7 +211,7 @@ export function stanZZapisu(dane, limit = Infinity, rng = Math.random) {
     wyjscie: { x: dane.wyjscie.x, y: dane.wyjscie.y },
     maKlucz: dane.maKlucz,
     ukonczony: false,
-    odkryte: new Set(dane.odkryte),
+    odkryte: odkryteZNapisu(dane.odkryte, liczba),
   };
   aktualizujWidocznosc(stan);
   return stan;

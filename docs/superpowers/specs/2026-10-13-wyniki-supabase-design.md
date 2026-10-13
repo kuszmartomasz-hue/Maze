@@ -145,18 +145,21 @@ Interfejs (wszystkie funkcje asynchroniczne, **nigdy nie rzucają**; błąd, bra
 
 ```js
 stanDoZapisu(stan) → {
-  wersja: 1, poziom, szerokosc, wysokosc,
-  przejscia: number[],             // z Uint8Array
+  wersja: 2, poziom, szerokosc, wysokosc,
+  przejscia: string,               // maski jako hex, 1 znak na komórkę
   gracz: {x, y}, klucz: {x, y}, wyjscie: {x, y},
-  maKlucz: boolean, odkryte: number[],
+  maKlucz: boolean, odkryte: string, // bitmapa hex, 4 komórki na znak
 }
-stanDoZapisu(stan) dla ukończonego poziomu → { wersja: 1, poziom: stan.poziom + 1, nowy: true }
+stanDoZapisu(stan) dla ukończonego poziomu → { wersja: 2, poziom: stan.poziom + 1, nowy: true }
 
 stanZZapisu(dane, limit = Infinity, rng = Math.random) → stan | null
 ```
 
 - `{ nowy: true }` → `nowyPoziom(poziom, limit, rng)`.
-- Pełny zapis → walidacja; `null`, gdy: `wersja !== 1`; poziom nie jest liczbą całkowitą 1–500;
+- Zwarty format (wersja 2, po recenzji 2026-10-13): wersja 1 z tablicami liczb przekraczała limit 16 KB
+  już przy planszy 26×26 (poziom 10); plansza 200×200 zajmuje teraz ok. 50 KB, limit `zapisy` podniesiony
+  do 64 KB migracją `20261013000002_zapisy_limit_64kb.sql`.
+- Pełny zapis → walidacja; `null`, gdy: `wersja !== 2`; napisy `przejscia`/`odkryte` złej długości lub spoza `[0-9a-f]`; poziom nie jest liczbą całkowitą 1–500;
   wymiary nie są liczbami całkowitymi 2–200 albo `przejscia.length !== szerokosc·wysokosc`;
   maska spoza 0–15, przejście poza siatkę lub niesymetryczne; pozycje poza siatką;
   labirynt niespójny (BFS z gracza nie dochodzi do wszystkich komórek); odkryte poza zakresem.
