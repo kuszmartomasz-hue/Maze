@@ -1,5 +1,6 @@
 // Stan gry i zasady: ruch, klucz, wyjście, poziomy, rekord, mgła. Bez DOM i window.
 import { generujLabirynt, wybierzPozycje, odleglosci, indeks, pozycjaZIndeksu, wSiatce, KIERUNKI } from './maze.js';
+import { dlugoscPlanszy } from './uklad.js';
 
 export const ROZMIAR_STARTOWY = 8;
 export const PRZYROST_ROZMIARU = 2;
@@ -15,9 +16,12 @@ export const RUCHY = {
   lewo: KIERUNKI[3],
 };
 
-/** Największy rozmiar siatki, przy którym komórka ma co najmniej MIN_KOMORKA_PX. */
+/** Największy rozmiar siatki, przy którym komórka ma co najmniej MIN_KOMORKA_PX (z pasami żywopłotu). */
 export function limitRozmiaru(szerokoscPx, wysokoscPx) {
-  return Math.max(2, Math.floor(Math.min(szerokoscPx, wysokoscPx) / MIN_KOMORKA_PX));
+  const bok = Math.min(szerokoscPx, wysokoscPx);
+  let n = 2;
+  while (dlugoscPlanszy(n + 1, MIN_KOMORKA_PX) <= bok) n++;
+  return n;
 }
 
 /** Rozmiar labiryntu dla poziomu: 8, 10, 12… obcięty do limitu. */

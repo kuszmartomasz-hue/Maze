@@ -5,6 +5,7 @@ import {
   wczytajRekord, zapiszRekord, RUCHY, ZASIEG_MGLY, POZIOM_MGLY, KLUCZ_REKORDU, MIN_KOMORKA_PX,
 } from '../src/game.js';
 import { indeks, sciezka, pozycjaZIndeksu, odleglosci, N, E, S, W } from '../src/maze.js';
+import { dlugoscPlanszy } from '../src/uklad.js';
 import { mulberry32, pamiecStorage } from './helpers.js';
 
 function kierunekDo(a, b) {
@@ -91,7 +92,13 @@ test('rozmiar poziomu: 8, 10, 12… i obcięcie do limitu', () => {
   assert.equal(rozmiarPoziomu(10), 26);
   assert.equal(rozmiarPoziomu(10, 20), 20);
   assert.equal(rozmiarPoziomu(50, 20), 20);
-  assert.equal(limitRozmiaru(600, 480), Math.floor(480 / MIN_KOMORKA_PX));
+  assert.equal(limitRozmiaru(600, 480), 26); // 26·12 + 27·6 = 474 ≤ 480, 27 komórek = 492
+  for (const bok of [100, 480, 731, 1400]) {
+    const n = limitRozmiaru(bok, bok + 50);
+    assert.ok(dlugoscPlanszy(n, MIN_KOMORKA_PX) <= bok, `limit ${n} nie mieści się w ${bok}`);
+    assert.ok(dlugoscPlanszy(n + 1, MIN_KOMORKA_PX) > bok, `limit ${n} za mały dla ${bok}`);
+  }
+  assert.equal(limitRozmiaru(10, 10), 2);
   assert.equal(nowyPoziom(20, 30, mulberry32(1)).labirynt.szerokosc, 30);
   assert.equal(nowyPoziom(2, 30, mulberry32(1)).labirynt.wysokosc, 10);
 });

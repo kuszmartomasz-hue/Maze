@@ -4,7 +4,8 @@ import {
   stanDoZapisu, stanZZapisu, normalizujNick, wczytajNick, zapiszNick,
 } from './game.js';
 import { utworzBaze } from './baza.js';
-import { dopasujCanvas, rysuj } from './render.js';
+import { dopasujCanvas, rysuj, rysujTlo } from './render.js';
+import { wczytajTekstury, BEZ_TEKSTUR } from './tekstury.js';
 import { podlaczKlawiature } from './input.js';
 
 const canvas = document.getElementById('plansza');
@@ -49,6 +50,7 @@ let stan = null;
 let ctx = null;
 let wymiary = { w: 0, h: 0 };
 let timerKomunikatu = 0;
+let tekstury = BEZ_TEKSTUR;
 let zapis = null; // przerwana gra (dane JSON) — z bazy albo z ostatniego zapisu w tej karcie
 let timerZapisu = 0;
 let ostatniZapis = 0;
@@ -68,9 +70,10 @@ function limit() {
 
 function odswiez() {
   if (!ctx) return;
+  rysujTlo(ctx, wymiary.w, wymiary.h, tekstury);
   ctx.save();
   ctx.translate(MARGINES, MARGINES);
-  rysuj(ctx, ekran === 'start' ? null : stan, wymiary.w - 2 * MARGINES, wymiary.h - 2 * MARGINES);
+  rysuj(ctx, ekran === 'start' ? null : stan, wymiary.w - 2 * MARGINES, wymiary.h - 2 * MARGINES, tekstury);
   ctx.restore();
   aktualizujHud();
 }
@@ -293,3 +296,8 @@ window.addEventListener('pagehide', () => {
 dopasuj();
 pokazEkran('start');
 wczytajZapis();
+// Tekstury dochodzą w tle; do tego czasu (i przy błędzie) renderer używa kolorów zastępczych.
+wczytajTekstury().then((wczytane) => {
+  tekstury = wczytane;
+  odswiez();
+});

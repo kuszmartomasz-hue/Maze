@@ -41,7 +41,7 @@ Plansza N×M komórek jest rysowana jako naprzemienne pasy: żywopłot, ścieżk
 - Pole między dwiema sąsiednimi komórkami: żwir, gdy jest przejście; żywopłot, gdy jest ściana.
 - Narożniki (punkty styku czterech komórek oraz obwód planszy) — zawsze żywopłot.
 
-Nowa czysta funkcja w `src/render.js` (eksportowana do testów):
+Nowa czysta funkcja w `src/uklad.js` (współdzielona z `limitRozmiaru` w `game.js`):
 
 ```js
 uklad(labirynt, szerokoscPx, wysokoscPx) → { kom, sc, ox, oy, szer, wys }
@@ -80,7 +80,7 @@ Pole żywopłotu lub przejścia dostaje stan od sąsiednich komórek:
 
 Sąsiedzi: pole między komórkami → 2 komórki; narożnik → do 4 komórek (mniej na obwodzie).
 
-Nowa czysta funkcja w `src/render.js`:
+Nowa czysta funkcja w `src/uklad.js`:
 
 ```js
 stanPola(komorkiSasiednie, odkryte, widoczne) → 'widoczne' | 'odkryte' | 'nieodkryte'

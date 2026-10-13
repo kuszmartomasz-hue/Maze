@@ -22,15 +22,18 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 | `style.css` | Wygląd strony, HUD i nakładek |
 | `src/maze.js` | Czyste funkcje: generowanie labiryntu, BFS/odległości, wybór pozycji startu/wyjścia/klucza |
 | `src/game.js` | Stan gry i zasady: ruch, kolizje ze ścianami, klucz, wyjście, poziomy, rekord, widoczność/mgła (bez DOM) |
-| `src/render.js` | Rysowanie stanu na canvasie |
+| `src/render.js` | Rysowanie stanu na canvasie: las, żwir, żywopłot, mgła, przedmioty |
+| `src/uklad.js` | Geometria układu blokowego (żywopłot między ścieżkami), stan mgły pól (bez DOM) |
+| `src/tekstury.js` | Ładowanie tekstur z `assets/`, `null` przy błędzie |
+| `assets/*.jpg` | Tekstury: żywopłot, żwir, las (512×512); prompty w `assets/prompty/` |
 | `src/input.js` | Obsługa klawiatury → akcje gry |
 | `src/main.js` | Spięcie modułów, pętla/odświeżanie, przełączanie ekranów |
 | `src/baza.js` | Komunikacja z Supabase: anonimowa sesja, wyniki, zapis stanu gry (nigdy nie rzuca) |
 | `src/konfiguracja.js` | Publiczny adres i klucz publikowalny Supabase |
 | `supabase/migrations/*.sql` | Schemat bazy: tabele `wyniki`, `zapisy`, RLS, funkcje `zapisz_wynik`, `moje_miejsce` |
-| `tests/*.test.js` | Testy `maze.js` i `game.js` |
+| `tests/*.test.js` | Testy `maze.js`, `game.js`, `uklad.js`, `tekstury.js`, `baza.js`, `input.js` i dymny test `render.js` |
 
-`maze.js`, `game.js` i `baza.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node; `fetch` i `storage` wstrzykiwane do `baza.js`). Losowość wstrzykiwana
+`maze.js`, `game.js`, `uklad.js` i `baza.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node; `fetch` i `storage` wstrzykiwane do `baza.js`). Losowość wstrzykiwana
 jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać deterministycznego generatora.
 
 ## 4. Labirynt
@@ -95,16 +98,20 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
   i po ruchach (najwyżej raz na 3 s). Po ukończeniu poziomu zapis wskazuje następny poziom.
 
 ## 10. Oprawa
-- Minimalistyczna: ściany jako linie, gracz jako koło, klucz i drzwi wyjścia jako proste kształty
-  (drzwi wyraźnie inne w stanie zamkniętym i otwartym). Wszystko rysowane w canvasie, bez obrazków i fontów zewnętrznych.
+- Ogród na leśnej polanie, widziany z góry: układ blokowy — ściany to pasy żywopłotu o połowie szerokości
+  ścieżki, ścieżki ze żwiru, dookoła planszy las z miękkim cieniem na granicy polany.
+- Tekstury jako zoptymalizowane pliki JPG w `assets/` (ścieżki względne); gdy się nie wczytają — kolory
+  zastępcze, gra działa dalej. Bez fontów zewnętrznych.
+- Gracz jako koło, klucz i drzwi wyjścia jako proste kształty rysowane w canvasie, z ciemnym obrysem
+  (drzwi wyraźnie inne w stanie zamkniętym i otwartym). Mgła zakrywa i przyciemnia także żywopłot.
 - Brak dźwięku.
-- Canvas dopasowuje się do okna (także po `resize`), zachowując kwadratowe komórki; ostre linie na ekranach HiDPI
+- Canvas dopasowuje się do okna (także po `resize`), zachowując kwadratowe komórki; ostra grafika na ekranach HiDPI
   (`devicePixelRatio`).
 - Czytelne kontrasty kolorów (gracz, klucz, wyjście rozróżnialne także bez rozróżniania barw — kształtem).
 
 ## 11. Poza zakresem
 Stoper, limit czasu, pauza, przeciwnicy, monety/punkty, podpowiedź drogi, sterowanie dotykiem i myszą,
-dźwięk, seed labiryntu, motywy graficzne, konta z logowaniem, wznawianie na innym urządzeniu,
+dźwięk, seed labiryntu, przełączanie motywów graficznych, konta z logowaniem, wznawianie na innym urządzeniu,
 walidacja wyników po stronie serwera.
 
 ## 12. Kryteria akceptacji / testy
@@ -120,6 +127,10 @@ Automatyczne (`node --test`):
 - Mgła: na poziomach 1–2 wszystkie komórki odkryte; od 3 na starcie odkryte tylko komórki w zasięgu 3 kroków.
 - `widoczneKomorki` nie zwraca komórki za ścianą (sąsiedniej fizycznie, ale odległej po korytarzu > 3).
 - Zbiór odkrytych tylko rośnie w trakcie poziomu; `R` i nowy poziom go zerują.
+- Układ blokowy: plansza mieści się w obszarze i jest wycentrowana; żywopłot = połowa ścieżki;
+  pola przejść zgodne z maskami labiryntu; narożniki i obwód zawsze żywopłot.
+- `limitRozmiaru` uwzględnia pasy żywopłotu (komórka ≥ 12 px).
+- Brak tekstury → `null` i rysowanie kolorem zastępczym, bez wyjątku.
 - Zapis stanu: wierne odtworzenie; ukończony poziom → następny; uszkodzone dane → brak wznowienia.
 - Nick: obcięcie spacji, maks. 20 znaków (punktów kodowych), pusty → brak wpisu.
 - `baza.js` (atrapa `fetch`): logowanie, odświeżenie tokenu, brak nowej tożsamości przy braku sieci,
@@ -131,4 +142,5 @@ Ręczne (w przeglądarce):
 - Po odświeżeniu strony rekord się zachowuje.
 - Zmiana rozmiaru okna nie psuje planszy.
 - Brak błędów w konsoli.
+- Tekstury bez widocznych szwów; klucz, drzwi i gracz czytelne na żwirze; mgła obejmuje żywopłot.
 - Wynik w tabeli po ukończeniu poziomu; zamknięcie karty → „Kontynuuj” odtwarza ten sam labirynt; tryb offline.
