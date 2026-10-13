@@ -13,8 +13,10 @@ import {
 } from './animacje.js';
 import { wczytajTekstury, BEZ_TEKSTUR } from './tekstury.js';
 import { podlaczKlawiature } from './input.js';
+import { utworzScene3d } from './scena3d.js';
 
 const canvas = document.getElementById('plansza');
+const canvas3d = document.getElementById('plansza3d');
 const obszar = document.getElementById('obszar');
 const ekrany = {
   start: document.getElementById('ekran-start'),
@@ -70,11 +72,29 @@ let warstwa = null; // statyczna plansza w pamięci: { canvas, labirynt, w, h, d
 let zlozenie = null; // płótno pomocnicze: plansza z mgłą w nieprzezroczystą całość na czas wejścia planszy
 let blokada = false; // rozbłysk po ukończeniu poziomu — klawisze ignorowane
 let petlaDziala = false;
+let scena3d = null; // renderer 3D (scena3d.js); null — rysuje renderer 2D
+
+/** Silnik 3D, gdy ruch nie jest ograniczony i WebGL działa; w przeciwnym razie renderer 2D. Widoczny tylko canvas aktywnego. */
+function wybierzSilnik() {
+  if (ograniczony() && scena3d) {
+    scena3d.zniszcz();
+    scena3d = null;
+  } else if (!ograniczony() && !scena3d) {
+    try {
+      scena3d = utworzScene3d(canvas3d, tekstury);
+    } catch {
+      scena3d = null;
+    }
+  }
+  canvas3d.hidden = !scena3d;
+  canvas.hidden = Boolean(scena3d);
+}
 
 function dopasuj() {
   const r = obszar.getBoundingClientRect();
   wymiary = { w: Math.max(1, Math.floor(r.width)), h: Math.max(1, Math.floor(r.height)) };
-  ctx = dopasujCanvas(canvas, wymiary.w, wymiary.h, window.devicePixelRatio || 1);
+  if (scena3d) scena3d.ustawRozmiar(wymiary.w, wymiary.h, window.devicePixelRatio || 1);
+  else ctx = dopasujCanvas(canvas, wymiary.w, wymiary.h, window.devicePixelRatio || 1);
   tlo.chmury = ograniczony() ? [] : chmury(wymiary.w, wymiary.h, Math.random);
   odswiezLiscie();
   odswiez();
@@ -153,6 +173,10 @@ function zlozPlansze(czas, w, h) {
 
 /** Jedna klatka: las, cienie chmur i liście, plansza z warstwy w pamięci i jej ruchoma część. */
 function klatka(czas) {
+  if (scena3d) {
+    scena3d.klatka(stan, anim, czas, ekran);
+    return;
+  }
   if (!ctx) return;
   rysujTlo(ctx, wymiary.w, wymiary.h, tekstury);
   if (!ograniczony()) rysujTloAnimowane(ctx, wymiary.w, wymiary.h, tlo.chmury, tlo.liscie, czas);
@@ -187,7 +211,7 @@ function petla(czas) {
 
 /** Bez ograniczonego ruchu klatki rysuje pętla; przy ograniczonym — jedna klatka po każdym zdarzeniu. */
 function odswiez() {
-  if (!ctx) return;
+  if (!ctx && !scena3d) return;
   if (ograniczony()) klatka(teraz());
   else if (!petlaDziala) {
     petlaDziala = true;
@@ -435,6 +459,7 @@ window.addEventListener('resize', dopasuj);
 new ResizeObserver(dopasuj).observe(obszar);
 // Zmiana ustawienia systemowego w trakcie gry — nowy stan animacji i tło zgodne z ustawieniem.
 ograniczonyRuch.addEventListener('change', () => {
+  wybierzSilnik();
   if (stan) nowaAnimacja();
   dopasuj();
 });
@@ -442,11 +467,13 @@ ograniczonyRuch.addEventListener('change', () => {
 window.addEventListener('pagehide', () => {
   if (stan && ekran === 'gra') zapiszStanGry({ odrazu: true, keepalive: true });
 });
+wybierzSilnik();
 dopasuj();
 pokazEkran('start');
 wczytajZapis();
 // Tekstury dochodzą w tle; do tego czasu (i przy błędzie) renderer używa kolorów zastępczych.
 wczytajTekstury().then((wczytane) => {
   tekstury = wczytane;
+  scena3d?.ustawTekstury(wczytane);
   odswiez();
 });
