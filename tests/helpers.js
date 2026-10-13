@@ -16,6 +16,7 @@ export function pamiecStorage(poczatek = {}) {
   return {
     getItem: (k) => (k in dane ? dane[k] : null),
     setItem: (k, v) => { dane[k] = String(v); },
+    removeItem: (k) => { delete dane[k]; },
     dane,
   };
 }
