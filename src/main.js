@@ -24,6 +24,7 @@ const poleNicku = document.getElementById('nick');
 const nickUwaga = document.getElementById('nick-uwaga');
 const akcjaStart = document.getElementById('akcja-start');
 const akcjaWznow = document.getElementById('akcja-wznow');
+const akcjaCzekaj = document.getElementById('akcja-czekaj');
 const wznowPoziom = document.getElementById('wznow-poziom');
 const rankingStatus = document.getElementById('ranking-status');
 const rankingLista = document.getElementById('ranking-lista');
@@ -51,6 +52,8 @@ let timerKomunikatu = 0;
 let zapis = null; // przerwana gra (dane JSON) — z bazy albo z ostatniego zapisu w tej karcie
 let timerZapisu = 0;
 let ostatniZapis = 0;
+let zapisSprawdzony = false; // odczyt zapisu z bazy zakończony (także błędem)
+let czekaNaZapis = false; // Enter wciśnięty przed końcem odczytu — start po odczycie
 
 function dopasuj() {
   const r = obszar.getBoundingClientRect();
@@ -118,9 +121,28 @@ function zapiszStanGry({ odrazu = false, keepalive = false } = {}) {
 /** Przerwana gra z bazy; uszkodzony zapis jest ignorowany. */
 async function wczytajZapis() {
   const dane = await baza.wczytajStan();
-  if (zapis) return; // w tej karcie już zagrano — lokalny zapis jest świeższy
-  zapis = dane && stanZZapisu(dane, limit()) ? dane : null;
-  if (ekran === 'start') pokazAkcjeStartu();
+  // w tej karcie już zagrano — lokalny zapis jest świeższy
+  if (!zapis) zapis = dane && stanZZapisu(dane, limit()) ? dane : null;
+  zapisSprawdzony = true;
+  akcjaCzekaj.hidden = true;
+  if (ekran !== 'start') return;
+  pokazAkcjeStartu();
+  if (czekaNaZapis) potwierdzStart();
+}
+
+/** Enter na ekranie startowym: kontynuacja albo nowa gra — dopiero gdy wiadomo, czy jest zapis. */
+function potwierdzStart() {
+  aktualizujNick();
+  poleNicku.blur();
+  if (!zapisSprawdzony) {
+    czekaNaZapis = true;
+    akcjaStart.hidden = true;
+    akcjaCzekaj.hidden = false;
+    return;
+  }
+  czekaNaZapis = false;
+  if (zapis) wznow();
+  else nowaGra();
 }
 
 function wierszRankingu(miejsce, w, mojId) {
@@ -167,6 +189,7 @@ function pokazEkran(nazwa) {
     rekordEl.textContent = `Najwyższy poziom: ${wczytajRekord(storage)}`;
     pokazAkcjeStartu();
     odswiezRanking();
+    if (!nick()) poleNicku.focus(); // pisanie nicku od razu trafia do pola, a nie w skróty gry
   }
   hudKomunikat.textContent = '';
   odswiez();
@@ -180,6 +203,7 @@ function rozpocznijPoziom(poziom) {
 
 /** Nowa gra od poziomu 1 — nowy zapis nadpisuje poprzedni (upsert), bez osobnego usuwania. */
 function nowaGra() {
+  czekaNaZapis = false;
   clearTimeout(timerZapisu);
   rozpocznijPoziom(1);
 }
@@ -199,10 +223,7 @@ function obsluz(akcja, powtorzenie) {
   if (ekran === 'start') {
     if (powtorzenie) return;
     if (akcja === 'potwierdz') {
-      aktualizujNick();
-      poleNicku.blur();
-      if (zapis) wznow();
-      else nowaGra();
+      potwierdzStart();
     } else if (akcja === 'nowaGra') {
       nowaGra();
     }
