@@ -1,5 +1,5 @@
 :root {
-  --tlo: #10131a;
+  --tlo: #0d1410;
   --panel: #181d29;
   --tekst: #e6ecf7;
   --przygaszony: #93a0b8;
@@ -68,7 +68,7 @@ body {
   align-items: center;
   justify-content: center;
   padding: 16px;
-  background: rgba(8, 10, 15, 0.82);
+  background: rgba(8, 12, 10, 0.6);
 }
 .nakladka[hidden] { display: none; }
 
