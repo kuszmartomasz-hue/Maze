@@ -171,7 +171,7 @@ stanZZapisu(dane, limit = Infinity, rng = Math.random) → stan | null
 - ruch — najwyżej raz na 3 s (zapis odroczony, ostatni stan wygrywa);
 - ukończenie poziomu — `zapiszWynik(nick, poziom)` (gdy jest nick) i zapis `{ nowy: true }` następnego poziomu;
 - `pagehide` — zapis z `keepalive: true`, jeśli trwa gra;
-- `N` (nowa gra) — `usunStan()`, potem start poziomu 1.
+- `N` (nowa gra) — start poziomu 1; jego zapis nadpisuje poprzedni (upsert). `usunStan()` nie jest wołane, bo równoległe DELETE i POST mogłyby dojść w odwrotnej kolejności.
 
 ## 5. Ekran startowy i klawiatura
 

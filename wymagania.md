@@ -9,6 +9,8 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 
 ## 2. Technologia
 - HTML + CSS + JavaScript (ES modules), rysowanie w `<canvas>`, bez frameworków i bundlera, bez zależności runtime.
+- Wyniki i zapis gry: Supabase (Auth anonimowe + PostgREST) wywoływany przez `fetch` — usługa zewnętrzna,
+  bez bibliotek. Gra działa w pełni bez niej (bez tabeli wyników i wznawiania).
 - Testy logiki: wbudowany runner `node --test` (Node ≥ 18), bez bibliotek.
 - Uruchamianie: moduły ES nie działają z `file://`, więc serwer statyczny: `python3 -m http.server 8000`
   w katalogu projektu → `http://localhost:8000`.
@@ -23,9 +25,12 @@ i łatwa do pokazania. Zakres celowo umiarkowany.
 | `src/render.js` | Rysowanie stanu na canvasie |
 | `src/input.js` | Obsługa klawiatury → akcje gry |
 | `src/main.js` | Spięcie modułów, pętla/odświeżanie, przełączanie ekranów |
+| `src/baza.js` | Komunikacja z Supabase: anonimowa sesja, wyniki, zapis stanu gry (nigdy nie rzuca) |
+| `src/konfiguracja.js` | Publiczny adres i klucz publikowalny Supabase |
+| `supabase/migrations/*.sql` | Schemat bazy: tabele `wyniki`, `zapisy`, RLS, funkcje `zapisz_wynik`, `moje_miejsce` |
 | `tests/*.test.js` | Testy `maze.js` i `game.js` |
 
-`maze.js` i `game.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node). Losowość wstrzykiwana
+`maze.js`, `game.js` i `baza.js` nie mogą odwoływać się do DOM ani `window` (testowalne w Node; `fetch` i `storage` wstrzykiwane do `baza.js`). Losowość wstrzykiwana
 jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać deterministycznego generatora.
 
 ## 4. Labirynt
@@ -73,13 +78,21 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
 - Ekran startowy wspomina o mgle w instrukcji; HUD od poziomu 3 pokazuje „Mgła”.
 
 ## 8. Ekrany
-1. **Start:** tytuł, rekord („Najwyższy poziom: N”), instrukcja sterowania, `Enter`/`Spacja` = start.
+1. **Start:** tytuł, rekord („Najwyższy poziom: N”), pole nicku (1–20 znaków; bez nicku wynik nie trafia
+   do tabeli), instrukcja sterowania, tabela wyników (top 10, własny wiersz wyróżniony, „Ty: N. miejsce”
+   poza dziesiątką). Bez zapisu: `Enter`/`Spacja` = start. Z zapisem przerwanej gry: `Enter` = kontynuuj
+   (ten sam labirynt), `N` = nowa gra.
 2. **Gra:** labirynt + HUD (numer poziomu, status klucza, skróty `R` / `Esc`).
 3. **Poziom ukończony:** „Poziom N ukończony”, `Enter`/`Spacja` = następny poziom.
 
 ## 9. Zapis
 - `localStorage`, klucz `labirynt.najwyzszyPoziom` — najwyższy ukończony poziom.
 - Odczyt/zapis w `try/catch`; brak dostępu do storage nie może psuć gry (rekord = 0).
+- Nick w `localStorage` (`labirynt.nick`), sesja anonimowa Supabase w `localStorage` (`labirynt.sesja`).
+- Wynik online: najwyższy ukończony poziom gracza w tabeli `wyniki` (tylko rośnie), zapisywany po ukończeniu
+  poziomu, gdy podano nick.
+- Stan przerwanej gry w tabeli `zapisy`: przy starcie poziomu, `R`, zdobyciu klucza, `Esc`, zamknięciu karty
+  i po ruchach (najwyżej raz na 3 s). Po ukończeniu poziomu zapis wskazuje następny poziom.
 
 ## 10. Oprawa
 - Minimalistyczna: ściany jako linie, gracz jako koło, klucz i drzwi wyjścia jako proste kształty
@@ -91,7 +104,8 @@ jako funkcja `rng` (domyślnie `Math.random`), aby testy mogły używać determi
 
 ## 11. Poza zakresem
 Stoper, limit czasu, pauza, przeciwnicy, monety/punkty, podpowiedź drogi, sterowanie dotykiem i myszą,
-dźwięk, seed labiryntu, tabela wyników online, motywy graficzne.
+dźwięk, seed labiryntu, motywy graficzne, konta z logowaniem, wznawianie na innym urządzeniu,
+walidacja wyników po stronie serwera.
 
 ## 12. Kryteria akceptacji / testy
 Automatyczne (`node --test`):
@@ -106,9 +120,15 @@ Automatyczne (`node --test`):
 - Mgła: na poziomach 1–2 wszystkie komórki odkryte; od 3 na starcie odkryte tylko komórki w zasięgu 3 kroków.
 - `widoczneKomorki` nie zwraca komórki za ścianą (sąsiedniej fizycznie, ale odległej po korytarzu > 3).
 - Zbiór odkrytych tylko rośnie w trakcie poziomu; `R` i nowy poziom go zerują.
+- Zapis stanu: wierne odtworzenie; ukończony poziom → następny; uszkodzone dane → brak wznowienia.
+- Nick: obcięcie spacji, maks. 20 znaków (punktów kodowych), pusty → brak wpisu.
+- `baza.js` (atrapa `fetch`): logowanie, odświeżenie tokenu, brak nowej tożsamości przy braku sieci,
+  błędy i przekroczenie czasu → `null`/`false` bez wyjątku.
+- Pole nicku: litery i spacja nie sterują grą.
 
 Ręczne (w przeglądarce):
 - Pełny przebieg: start → poziom 1 → klucz → wyjście → poziom 2 (większy) → poziom 3 (mgła, odkrywanie planszy) → `R` → `Esc` → rekord na ekranie startowym.
 - Po odświeżeniu strony rekord się zachowuje.
 - Zmiana rozmiaru okna nie psuje planszy.
 - Brak błędów w konsoli.
+- Wynik w tabeli po ukończeniu poziomu; zamknięcie karty → „Kontynuuj” odtwarza ten sam labirynt; tryb offline.
