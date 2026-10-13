@@ -13,7 +13,6 @@ import {
 } from './animacje.js';
 import { wczytajTekstury, BEZ_TEKSTUR } from './tekstury.js';
 import { podlaczKlawiature } from './input.js';
-import { utworzScene3d } from './scena3d.js';
 
 const canvas = document.getElementById('plansza');
 const canvas3d = document.getElementById('plansza3d');
@@ -74,20 +73,55 @@ let blokada = false; // rozbłysk po ukończeniu poziomu — klawisze ignorowane
 let petlaDziala = false;
 let scena3d = null; // renderer 3D (scena3d.js); null — rysuje renderer 2D
 
-/** Silnik 3D, gdy ruch nie jest ograniczony i WebGL działa; w przeciwnym razie renderer 2D. Widoczny tylko canvas aktywnego. */
-function wybierzSilnik() {
-  if (ograniczony() && scena3d) {
-    scena3d.zniszcz();
-    scena3d = null;
-  } else if (!ograniczony() && !scena3d) {
-    try {
-      scena3d = utworzScene3d(canvas3d, tekstury);
-    } catch {
-      scena3d = null;
-    }
-  }
+/** Widoczny tylko canvas aktywnego silnika (3D, gdy `scena3d`; inaczej 2D). */
+function pokazCanvas() {
   canvas3d.hidden = !scena3d;
   canvas.hidden = Boolean(scena3d);
+}
+
+/** Porzuca scenę 3D (błąd, utrata kontekstu, reduced-motion) i wraca do renderera 2D. */
+function przelaczNa2d() {
+  if (!scena3d) return;
+  try {
+    scena3d.zniszcz();
+  } catch {
+    // scena i tak zostaje porzucona
+  }
+  scena3d = null;
+  pokazCanvas();
+  dopasuj();
+}
+
+let proba3d = 0; // znacznik ostatniej próby włączenia 3D — przeterminowane próby są ignorowane
+
+/** Start zawsze w 2D; 3D włącza się po udanym imporcie scena3d.js (three.js) i utworzeniu renderera. */
+async function wlacz3d() {
+  if (ograniczony() || scena3d) return;
+  const moja = ++proba3d;
+  try {
+    const { utworzScene3d } = await import('./scena3d.js');
+    if (moja !== proba3d || ograniczony() || scena3d) return;
+    scena3d = utworzScene3d(canvas3d, tekstury, przelaczNa2d);
+  } catch {
+    scena3d = null;
+    return;
+  }
+  pokazCanvas();
+  dopasuj();
+}
+
+/** Zmiana reduced-motion: 3D wyłączone przy ograniczonym ruchu, w przeciwnym razie próba włączenia. */
+function wybierzSilnik() {
+  if (ograniczony()) {
+    proba3d++;
+    if (scena3d) {
+      scena3d.zniszcz();
+      scena3d = null;
+    }
+  } else {
+    wlacz3d();
+  }
+  pokazCanvas();
 }
 
 function dopasuj() {
@@ -174,8 +208,13 @@ function zlozPlansze(czas, w, h) {
 /** Jedna klatka: las, cienie chmur i liście, plansza z warstwy w pamięci i jej ruchoma część. */
 function klatka(czas) {
   if (scena3d) {
-    scena3d.klatka(stan, anim, czas, ekran);
-    return;
+    try {
+      scena3d.klatka(stan, anim, czas, ekran);
+      return;
+    } catch {
+      przelaczNa2d(); // dopasuj() rysuje już klatkę 2D; pętla działa dalej
+      return;
+    }
   }
   if (!ctx) return;
   rysujTlo(ctx, wymiary.w, wymiary.h, tekstury);
@@ -467,8 +506,9 @@ ograniczonyRuch.addEventListener('change', () => {
 window.addEventListener('pagehide', () => {
   if (stan && ekran === 'gra') zapiszStanGry({ odrazu: true, keepalive: true });
 });
-wybierzSilnik();
+pokazCanvas();
 dopasuj();
+wlacz3d();
 pokazEkran('start');
 wczytajZapis();
 // Tekstury dochodzą w tle; do tego czasu (i przy błędzie) renderer używa kolorów zastępczych.

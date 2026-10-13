@@ -172,9 +172,25 @@ function modelDrzwi(materialRamy, materialSkrzydla) {
   return g;
 }
 
-/** Tworzy renderer 3D na `canvas` (osobny element). Rzuca wyjątek, gdy WebGL niedostępny. */
-export function utworzScene3d(canvas, tekstury) {
+/**
+ * Tworzy renderer 3D na `canvas` (osobny element). Rzuca wyjątek, gdy WebGL niedostępny.
+ * `przyUtracie` wywoływane po utracie kontekstu WebGL — wtedy scenę trzeba porzucić.
+ */
+export function utworzScene3d(canvas, tekstury, przyUtracie) {
   const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, powerPreference: 'high-performance' });
+  try {
+    return zbudujScene3d(renderer, canvas, tekstury, przyUtracie);
+  } catch (e) {
+    renderer.dispose();
+    throw e;
+  }
+}
+
+function zbudujScene3d(renderer, canvas, tekstury, przyUtracie) {
+  canvas.addEventListener('webglcontextlost', (e) => {
+    e.preventDefault();
+    przyUtracie?.();
+  });
   renderer.setPixelRatio(Math.min(2, window.devicePixelRatio || 1));
   renderer.outputColorSpace = THREE.SRGBColorSpace;
   renderer.toneMapping = THREE.ACESFilmicToneMapping;
